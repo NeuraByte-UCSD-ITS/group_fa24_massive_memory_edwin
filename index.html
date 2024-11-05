@@ -7,24 +7,59 @@
   <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@2.0.0"></script>
   <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.0.0"></script>
   <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.0.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-fullscreen@2.0.0"></script>
   <link href="https://unpkg.com/jspsych@8.0.0/css/jspsych.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body></body>
 <script>
 
-  /* initialize jsPsych */
+  // Initialize jsPsych experiment settings, setting a callback to display collected data at the end
   var jsPsych = initJsPsych({
     on_finish: function () {
       jsPsych.data.displayData();
     }
   });
 
-  /* create timeline */
+  // Create the experiment timeline array, which will hold all trials in sequential order
   var timeline = [];
 
-  /* create memory list */
-  // create a list of all items to be tested during the memory procedure
+  /**
+   * Enable fullscreen mode at the beginning of the experiment.
+   * This improves the participant's focus by using the entire screen and minimizing distractions.
+   */
+  timeline.push({
+    type: jsPsychFullscreen,
+    fullscreen_mode: true
+  });
+
+  // Generate a unique participant ID to track responses without revealing identity
+  var participant_id = jsPsych.randomization.randomID();
+  // Add the participant ID to jsPsych data properties to associate it with collected data
+  jsPsych.data.addProperties({
+    participant: participant_id
+  });
+  console.log("Generated Participant ID:", participant_id); // Log the ID for verification
+
+  // Define a welcome message for participants to introduce them to the experiment
+  var welcome = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: "Welcome to the experiment. Press any key to continue."
+  };
+  timeline.push(welcome); // Add the welcome message to the timeline
+
+  // Instructions screen that provides an overview of the experiment process to the participants
+  var instructions = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+      <p>You will be shown a series of images.</p>
+      <p>After viewing them, you will be asked to identify images you saw from pairs shown to you.</p>
+      <p>Press any key to begin.</p>
+    `
+  };
+  timeline.push(instructions); // Add instructions to the timeline
+
+  // Define an array of image paths for the memory phase where participants view each image once
   // TO DO: how can we expand this list to encompass all items?
   // TO DO: How can we randomize which of the state/ exemplar items are studied?
   var memory_list = [
@@ -34,20 +69,46 @@
     "stimuli/organized/EXEMPLAR/USED/Ebasket1.jpg",
     "stimuli/organized/EXEMPLAR/USED/Ebell1.jpg",
     "stimuli/organized/EXEMPLAR/USED/Ebicycle1.jpg"
-  ]
-  //shuffle
+  ];
+  
+  // Shuffle the memory list to present images in a random order
   var memory_list_shuffled = jsPsych.randomization.shuffle(memory_list);
-  console.log(memory_list_shuffled)
 
-  /* create test stimulus list */
-  // create a list of images to use at test
+  // Initialize an empty array to keep track of any incorrect responses for later repetition
+  var incorrect_trials = [];
+
+  // Loop through each image in the memory list to display a fixation cross, followed by the image
+  memory_list_shuffled.forEach(function (current_image) {
+    // Define a fixation trial with a "+" sign displayed for 1000 ms to focus attention
+    var fixation = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: '<div style="font-size:60px;">+</div>',
+      choices: "NO_KEYS",
+      trial_duration: 1000,
+    };
+    timeline.push(fixation); // Add fixation cross trial to the timeline
+
+    // Define the image trial, displaying each image for 3000 ms without allowing participant input
+    // what else do we need to add to the trial procedure? What other information should we store? How can we turn this into a complete experiment timeline?
+    var trial = {
+      type: jsPsychImageKeyboardResponse,
+      stimulus: current_image,
+      choices: [" "], // Space bar as placeholder, but doesn't end trial
+      trial_duration: 3000, // Image is displayed for 3000 ms
+      response_ends_trial: false, // Trial duration fixed to ensure consistent timing
+      data: { trial_phase: "memory" } // Label trial phase for later data analysis
+    };
+    timeline.push(trial); // Add image trial to the timeline
+  });
+
+  /* Test Phase with choice trials */
+  // Define a test list with pairs of images where one image was seen earlier and one is a distractor
   // TO DO: how can we expand this list to encompass all items?
   var test_list = [
     {
       item_1: "Sabacus1.jpg",
       item_2: "Sabacus2.jpg",
       test_type: "state",
-      // store the stimulus path here, relative to the index.html
       path_to_image: "stimuli/organized/STATE/USED/"
     },
     {
@@ -81,67 +142,113 @@
       path_to_image: "stimuli/organized/EXEMPLAR/USED/"
     }
   ];
-  //shuffle
+
+  // Shuffle the test list to randomize the order of test trials
   var test_list_shuffled = jsPsych.randomization.shuffle(test_list);
-  console.log(test_list_shuffled)
 
-  //cycle through memory list using a for loop
-  for (i = 0; i < memory_list_shuffled.length; i++) {
+  // Iterate through each test item to create a choice trial for identifying previously seen images
+  test_list_shuffled.forEach(function (current_item) {
+    // Construct paths for the two images in the test trial
+    var image_1 = current_item["path_to_image"] + current_item["item_1"];
+    var image_2 = current_item["path_to_image"] + current_item["item_2"];
+    var shuffledImages = jsPsych.randomization.shuffle([image_1, image_2]); // Randomize left/right position
 
-    //select the current image item
-    var current_image = memory_list_shuffled[i];
-
-    //add fixation cross
-    var fixation = {
-      type: jsPsychHtmlKeyboardResponse,
-      stimulus: '<div style="font-size:60px;">+</div>',
-      choices: "NO_KEYS",
-      trial_duration: 1000,
-    };
-
-    timeline.push(fixation);
-
-    // here's how we can construct a simple image trial
-    // TO DO: add repeated trials
-    // what else do we need to add to the trial procedure? What other information should we store? How can we turn this into a complete experiment timeline?
-    var trial = {
-      type: jsPsychImageKeyboardResponse,
-      stimulus: current_image,
-      //make the space bar a response option
-      choices: [" "],
-      //the stimulus is shown for 3000 ms
-      trial_duration: 3000,
-      //response should not end trial so that we can keep the same consistent presentation timing
-      response_ends_trial: false,
-      data: {
-        trial_phase: "memory"
-      }
-    }
-    //push the trial to the timeline
-    timeline.push(trial);
-  }
-
-  //cycle through test list using a for loop
-  for (i = 0; i < test_list_shuffled.length; i++) {
-    //select the current item
-    var current_item = test_list_shuffled[i];
-    var image_1 = current_item["path_to_image"]+current_item["item_1"];
-    var image_2 = current_item["path_to_image"]+current_item["item_2"];
-
-    //TO DO: how can we randomize image positions? How can we ensure that the old/new items are correctly marked?
+    // Define the test trial where participants choose between two images
     var test_trial = {
       type: jsPsychHtmlButtonResponse,
       stimulus: "Which of these items did you see before?",
-      choices: ['<img src="'+image_1+'">', '<img src="'+image_2+'">'],
+      choices: [
+        `<img src="${shuffledImages[0]}" style="width:200px;height:200px;">`,
+        `<img src="${shuffledImages[1]}" style="width:200px;height:200px;">`
+      ],
       data: {
-        trial_phase: "test"
+        choice_images: shuffledImages, // Record image choices presented in this trial
+        correct_image: image_1  // Assume image_1 is the previously seen "old" image
+      },
+      on_finish: function (data) {
+        data.choice = data.choice_images[data.response]; // Store the chosen image
+        data.correct = data.choice === data.correct_image; // Check if choice was correct
+
+        // If response is incorrect, add this item to incorrect_trials for later repetition
+        if (!data.correct) {
+          incorrect_trials.push(current_item);
+        }
       }
     };
-    timeline.push(test_trial);
 
-  }
+    // Define feedback for each trial, indicating if the previous response was correct or incorrect
+    var feedback = {
+      type: jsPsychHtmlKeyboardResponse,
+      trial_duration: 1000, // Show feedback for 1 second
+      stimulus: function () {
+        var last_trial_correct = jsPsych.data.get().last(1).values()[0].correct;
+        return last_trial_correct ? "<p>Correct!</p>" : "<p>Incorrect. Let's try again.</p>";
+      },
+      post_trial_gap: 500,
+      response_ends_trial: false
+    };
 
-  /* start the experiment */
+    timeline.push(test_trial, feedback); // Add the test trial and feedback to the timeline
+  });
+
+  // Re-run only the incorrect trials after all initial trials are complete
+  var repeat_incorrect_trials = {
+    timeline: [],
+    conditional_function: function () {
+      return incorrect_trials.length > 0; // Only run this block if there are incorrect trials to repeat
+    },
+    on_timeline_start: function () {
+      // Clear previous incorrect timeline and add only incorrect trials
+      repeat_incorrect_trials.timeline = incorrect_trials.map(function (current_item) {
+        var image_1 = current_item["path_to_image"] + current_item["item_1"];
+        var image_2 = current_item["path_to_image"] + current_item["item_2"];
+        var shuffledImages = jsPsych.randomization.shuffle([image_1, image_2]); // Randomize positions
+
+        // Define a repeated trial for previously incorrect items
+        return {
+          type: jsPsychHtmlButtonResponse,
+          stimulus: "Which of these items did you see before?",
+          choices: [
+            `<img src="${shuffledImages[0]}" style="width:200px;height:200px;">`,
+            `<img src="${shuffledImages[1]}" style="width:200px;height:200px;">`
+          ],
+          data: {
+            choice_images: shuffledImages,
+            correct_image: image_1
+          },
+          on_finish: function (data) {
+            data.choice = data.choice_images[data.response];
+            data.correct = data.choice === data.correct_image;
+
+            // Remove correctly answered items from incorrect_trials to prevent further repetition
+            if (data.correct) {
+              incorrect_trials = incorrect_trials.filter(item => item.item_1 !== current_item.item_1);
+            }
+          }
+        };
+      });
+    },
+    loop_function: function () {
+      return incorrect_trials.length > 0; // Repeat until all incorrect trials are answered correctly
+    }
+  };
+
+  timeline.push(repeat_incorrect_trials); // Add incorrect trials repetition phase to the timeline
+
+  // Define end of experiment message
+  var end_experiment = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: "The experiment has ended, press any key to exit. Goodbye!"
+  };
+  timeline.push(end_experiment); // Add the end message to the timeline
+
+  // Disable fullscreen mode at the end of the experiment to allow participants to exit smoothly
+  timeline.push({
+    type: jsPsychFullscreen,
+    fullscreen_mode: false
+  });
+
+  // Run the experiment by executing all trials in the timeline sequentially
   jsPsych.run(timeline);
 
 </script>
