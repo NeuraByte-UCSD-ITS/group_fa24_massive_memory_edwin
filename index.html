@@ -9,6 +9,8 @@
   <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.0.0"></script>
   <script src="https://unpkg.com/@jspsych/plugin-fullscreen@2.0.0"></script>
   <link href="https://unpkg.com/jspsych@8.0.0/css/jspsych.css" rel="stylesheet" type="text/css" />
+  <!-- This is for data storage - please be sure to keep this script in all future updates to the code!! -->
+  <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe"></script>
 </head>
 
 <body></body>
@@ -41,6 +43,10 @@
   });
   console.log("Generated Participant ID:", participant_id); // Log the ID for verification
 
+  //TO DO: set filename based on participant info entered
+  const random_id = jsPsych.randomization.randomID(10);
+  const filename = `${random_id}.csv`;
+
   // Define a welcome message for participants to introduce them to the experiment
   var welcome = {
     type: jsPsychHtmlKeyboardResponse,
@@ -70,7 +76,7 @@
     "stimuli/organized/EXEMPLAR/USED/Ebell1.jpg",
     "stimuli/organized/EXEMPLAR/USED/Ebicycle1.jpg"
   ];
-  
+
   // Shuffle the memory list to present images in a random order
   var memory_list_shuffled = jsPsych.randomization.shuffle(memory_list);
 
@@ -247,6 +253,18 @@
     type: jsPsychFullscreen,
     fullscreen_mode: false
   });
+
+    //PLEASE KEEP FOR ALL FUTURE ITERATIONS
+  //this portion of the code ensures that the data gets sent to be stored on OSF
+  const save_data = {
+    type: jsPsychPipe,
+    action: "save",
+    experiment_id: "rPCppxIzRQ5T",
+    filename: filename,
+    data_string: () => jsPsych.data.get().csv()
+  };
+  timeline.push(save_data);
+  //PLEASE KEEP FOR ALL FUTURE ITERATIONS
 
   // Run the experiment by executing all trials in the timeline sequentially
   jsPsych.run(timeline);
