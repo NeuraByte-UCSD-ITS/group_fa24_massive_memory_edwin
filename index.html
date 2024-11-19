@@ -35,15 +35,19 @@
     fullscreen_mode: true
   });
 
-  // Generate a unique participant ID to track responses without revealing identity
-  var participant_id = jsPsych.randomization.randomID();
-  // Add the participant ID to jsPsych data properties to associate it with collected data
-  jsPsych.data.addProperties({
-    participant: participant_id
-  });
-  console.log("Generated Participant ID:", participant_id); // Log the ID for verification
+  // add the participant ID element
+  var participant_id_entry = {
+    type: jsPsychSurveyText,
+    questions: [{ prompt: "Please enter your participant ID (e.g. p1):", name: "participant_id" }],
+    on_finish: function (data) {
+      console.log(data.response);
+      jsPsych.data.addProperties({
+        participant: data.response.participant_id,
+      });
+    },
+  };
+  timeline.push(participant_id_entry);
 
-  //TO DO: set filename based on participant info entered
   //PLEASE KEEP FOR ALL FUTURE ITERATIONS
   //create a unique filename by combining a random string and a millisecond counter (to avoid duplicates)
   var random_id = jsPsych.randomization.randomID(10);
@@ -100,7 +104,7 @@
       type: jsPsychHtmlKeyboardResponse,
       stimulus: '<div style="font-size:60px;">+</div>',
       choices: "NO_KEYS",
-      trial_duration: 1000,
+      trial_duration: 800,
     };
     timeline.push(fixation); // Add fixation cross trial to the timeline
 
