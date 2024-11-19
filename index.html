@@ -36,19 +36,6 @@
     fullscreen_mode: true
   });
 
-  // add the participant ID element
-  var participant_id_entry = {
-    type: jsPsychSurveyText,
-    questions: [{ prompt: "Please enter your participant ID (e.g. p1):", name: "participant_id" }],
-    on_finish: function (data) {
-      console.log(data.response);
-      jsPsych.data.addProperties({
-        participant: data.response.participant_id,
-      });
-    },
-  };
-  timeline.push(participant_id_entry);
-
   //PLEASE KEEP FOR ALL FUTURE ITERATIONS
   //create a unique filename by combining a random string and a millisecond counter (to avoid duplicates)
   var random_id = jsPsych.randomization.randomID(10);
@@ -68,6 +55,19 @@
     stimulus: "Welcome to the experiment. Press any key to continue."
   };
   timeline.push(welcome); // Add the welcome message to the timeline
+
+  // add the participant ID element
+    var participant_id_entry = {
+    type: jsPsychSurveyText,
+    questions: [{ prompt: "Please enter your participant ID (e.g. p1):", name: "participant_id" }],
+    on_finish: function (data) {
+      console.log(data.response);
+      jsPsych.data.addProperties({
+        participant: data.response.participant_id,
+      });
+    },
+  };
+  timeline.push(participant_id_entry);
 
   // Instructions screen that provides an overview of the experiment process to the participants
   var instructions = {
