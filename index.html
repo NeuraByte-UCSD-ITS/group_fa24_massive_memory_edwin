@@ -186,11 +186,14 @@
       // iterate through each picture and add them to the study session and testing session
       shuffled_images.forEach(item => {
 
-        // counterbalancing strategy. 50% for image 1 of the image set to be chosen and 50% for image 2 of the image set to be chosen
+        // Counterbalancing strategy: ensuring images are divided evenly between "old" (used in memory phase) 
+        // and "new" (used in test phase) roles across participants. We avoid overlap by checking whether the image 
+        // is already in the memory or test phase, preventing an image from being selected for both phases 
+        // during a single session while maintaining randomization.
         var counterbalancing;
-        if (memory_images.includes(item.image1)) {
+        if (memory_images.includes(item.image1) && !test_images.includes(item.image1)) {
           counterbalancing = item.image1;
-        } else if (memory_images.includes(item.image2)) {
+        } else if (memory_images.includes(item.image2) && !test_images.includes(item.image2)) {
           counterbalancing = item.image2;
         } else if (Math.random() < .5) {
           counterbalancing = item.image1;
@@ -204,21 +207,24 @@
           stimulus: counterbalancing, // Displaying memory image
           choices: [' '],
           trial_duration: 2000,
-          // repeated needs to check if memory_images > 4 since no n backs before and then it needs to access the memory image 4 prior to the current
-          data: {trial_phase: "Memory", repeated: memory_images.length >= 4 && memory_images[memory_images.length-5] === counterbalancing},
+
+          // Tracks whether the current trial is a 4-back repeat by checking if the image appeared 4 trials prior,
+          // and makes sure no repeats are flagged before the 5th trial and correctly identifies repeated images for the 
+          // N-back task.
+          data: {
+            trial_phase: "Memory",
+            repeated: memory_images.length >= 4 && memory_images[memory_images.length-5] === counterbalancing,
+            trial_id: memory_images.length
+          },
           on_finish: function(data) {
-            // how to decide if correct
-            // if it is a 4 back + they have a response = true
-            // if it isn't a 4 back + they have a response = false
-            // if nothing then null
-            if(data.repeated && data.response !== null) {
-              data.correct = true;
-            } else if (!data.repeated && data.response !== null) {
-              data.correct = false;
-            } else {
-              data.correct = null
-            }
-            console.log('Trial data:', data.repeated);
+            // determiing participant's response accuracy for N-back:
+              // - Correct: participant responds to a 4-back repeat image
+              // - Incorrect: participant responds to a non-repeat image
+              // - No Response: Participant does not respond, regardless of repeat status
+                  // evaluates participant performance on N-back task           
+            data.correct = data.repeated && data.response !== null;
+            data.incorrect_response = !data.repeated && data.response !== null;
+            data.no_response = data.response === null;
           }
         });
 
@@ -292,11 +298,11 @@
           data.correct = data.choice === data.correct_image;
           }   
          });
-        timeline.push({
+         timeline.push({
           type: jsPsychImageSliderResponse,
           stimulus: function () {
-          var last_trial = jsPsych.data.get().last(1).values()[0];
-          return last_trial.choice;
+            var last_trial = jsPsych.data.get().last(1).values()[0];
+            return last_trial.choice;
           },
           labels: ['1<br>Not at all confident', '2', '3', '4', '5<br>Very confident'],
           prompt: "<p>How confident are you in your answer choice?</p>",
@@ -304,12 +310,13 @@
           max: 5,
           slider_start: 3,
           require_movement: true,
+          on_finish: function(data) {
+            data.confidence_score = data.response; // storing confidence score for analysis
+          }
         });
       });
 
 
-
-      
 
       // Adding feedback survey at end of experiment
       timeline.push({
