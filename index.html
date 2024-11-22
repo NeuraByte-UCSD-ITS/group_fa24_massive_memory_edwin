@@ -74,7 +74,7 @@
   // Displaying welcome message to introduce participants to experiment
   timeline.push({
     type: jsPsychHtmlKeyboardResponse,
-    stimulus: "Welcome to the Massive Memory Experiment. Press any key to begin."
+    stimulus: "Welcome to the Massive Memory Experiment. Press any key to move on."
   });
 
   // Giving participant instructions of experiment structure and tasks
@@ -83,6 +83,17 @@
     stimulus: `
       <p>In this experiment, you will view a series of images and then be asked to recall them.</p>
       <p>You will also rate your confidence for each image you recall.</p>
+      <p>Press any key to move on.</p>
+    `
+  });
+
+  timeline.push({
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+      <p>In the first section you will see a stream of images, broken up by fixation crosses.</p>
+      <p>Each image will remain on screen for 2 seconds. If you seen a repeated image, press the spacebar.</p>
+      <p>We will let you know if you have correctly or falsely clicked the spacebar on an image by changing the color of the fixation cross.</p>
+      <p>We will not provide any cue to a repeated image with no response</p>
       <p>Press any key to start.</p>
     `
   });
@@ -174,15 +185,7 @@
       // If we are separating by each session move this into for loop
       // iterate through each picture and add them to the study session and testing session
       shuffled_images.forEach(item => {
-        
-        // Add fixation cross and memory image display for each image in memory phase
-        timeline.push({
-          type: jsPsychHtmlKeyboardResponse,
-          stimulus: '<div style="font-size:60px;">+</div>', // Fixation cross
-          choices: "NO_KEYS",
-          trial_duration: 500,
-        });
-          
+          console.log('current item:', item);
         // counterbalancing strategy. 50% for image 1 of the image set to be chosen and 50% for image 2 of the image set to be chosen
         var counterbalancing;
         if (memory_images.includes(item.image1)) {
@@ -194,15 +197,48 @@
         } else {
           counterbalancing = item.image2;
         }
-
+        
         memory_images.push(counterbalancing);
         timeline.push({
           type: jsPsychImageKeyboardResponse,
           stimulus: counterbalancing, // Displaying memory image
-          choices: "NO_KEYS",
+          choices: [' '],
           trial_duration: 2000,
-          data: {trial_phase: "Memory"},
+          // repeated needs to check if memory_images > 4 since no n backs before and then it needs to access the memory image 4 prior to the current
+          data: {trial_phase: "Memory", repeated: memory_images.length >= 4 && memory_images[memory_images.length-5] === counterbalancing},
+          on_finish: function(data) {
+            // how to decide if correct
+            // if it is a 4 back + they have a response = true
+            // if it isn't a 4 back + they have a response = false
+            // if nothing then null
+            if(data.repeated && data.response !== null) {
+              data.correct = true;
+            } else if (!data.repeated && data.response !== null) {
+              data.correct = false;
+            } else {
+              data.correct = null
+            }
+            console.log('Trial data:', data.repeated);
+          }
         });
+
+        // Add fixation cross and memory image display for each image in memory phase
+        timeline.push({
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: function() {
+            var last_trial = jsPsych.data.get().last(1).values()[0]
+            if (last_trial.correct === true) {
+              return '<div style="font-size:60px; color: green;">+</div>'
+            } else if (last_trial.correct === false) {
+              return '<div style="font-size:60px; color: red;">+</div>'
+            } else {
+              return '<div style="font-size:60px; color: black;">+</div>'
+            }
+          },
+          choices: "NO_KEYS",
+          trial_duration: 500,
+        });
+
         count++;
         if (count > 50) {
           timeline.push({
@@ -214,9 +250,21 @@
           count = 0;
         }
       });
+
+      timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+          <p>In the next part of this experiment, you will see 2 images. Please select the image that you recall from the image stream.</p>
+          <p>You will also rate your confidence for each image you recall.</p>
+          <p>Press any key to start.</p>
+        `
+      });
+
+
+
       var test_images = [];
 
-      // randomize which images end up in test_images
+     // randomize which images end up in test_images
       shuffled_images = jsPsych.randomization.shuffle(shuffled_images);  
 
       for(var j = 0; j < 50; j++) {
