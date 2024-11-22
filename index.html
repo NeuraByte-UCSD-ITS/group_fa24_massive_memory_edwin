@@ -265,10 +265,10 @@
       var test_images = [];
 
      // randomize which images end up in test_images
-      shuffled_images = jsPsych.randomization.shuffle(shuffled_images);  
+      shuffled_images_2 = jsPsych.randomization.shuffle(data);  
 
       for(var j = 0; j < 50; j++) {
-        test_images.push(shuffled_images[j]);
+        test_images.push(shuffled_images_2[j]);
       }
 
       test_images.forEach(pair => {
